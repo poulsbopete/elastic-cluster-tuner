@@ -1,5 +1,3 @@
-'use client';
-
 // Elastic Serverless Observability Pricing
 // Based on: https://www.elastic.co/pricing/serverless-observability
 
