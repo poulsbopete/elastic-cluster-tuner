@@ -33,16 +33,18 @@ export function timeToSeconds(value: number, unit: TimeUnit): number {
 
 // Convert ingest volume to documents per second
 // If avgDocumentSizeKB is not provided, uses default estimates based on data type
+// Note: traces, logs, and metrics assume OpenTelemetry (OTLP) format
 export function volumeToDocsPerSecond(
   volume: IngestVolume,
   dataType: 'traces' | 'logs' | 'metrics' | 'custom' = 'custom'
 ): number {
   // Default average document sizes (in KB) by data type
+  // All assume OpenTelemetry (OTLP) format unless 'custom' is specified
   const defaultDocSizes: Record<string, number> = {
-    traces: 2.5, // Average OTEL trace document ~2.5KB
-    logs: 1.0,   // Average log document ~1KB
-    metrics: 0.1, // Average metric document ~0.1KB
-    custom: 1.0, // Default assumption
+    traces: 2.5, // Average OTLP trace document ~2.5KB
+    logs: 1.0,   // Average OTLP log document ~1KB
+    metrics: 0.1, // Average OTLP metric document ~0.1KB
+    custom: 1.0, // Default assumption (user must specify avgDocumentSizeKB for custom)
   };
 
   const avgDocSizeKB = volume.avgDocumentSizeKB || defaultDocSizes[dataType];

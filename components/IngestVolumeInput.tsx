@@ -119,13 +119,13 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
               onChange={(e) => handleChange('dataType', e.target.value)}
               className="w-full px-3 py-2 bg-white border border-elastic-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-elastic-blue focus:border-elastic-blue text-gray-900"
             >
-              <option value="traces">OpenTelemetry Traces</option>
-              <option value="logs">Logs</option>
-              <option value="metrics">Metrics</option>
+              <option value="traces">OTLP Traces</option>
+              <option value="logs">OTLP Logs</option>
+              <option value="metrics">OTLP Metrics</option>
               <option value="custom">Custom</option>
             </select>
             <p className="text-xs text-elastic-gray-500 mt-1">
-              Used to estimate average document size
+              Traces, logs, and metrics assume OpenTelemetry (OTLP) format. Use Custom for other formats.
             </p>
           </div>
 

@@ -36,8 +36,8 @@ export interface IngestVolumeConfig {
   value: number;
   volumeUnit: 'PB' | 'TB' | 'GB' | 'MB';
   timeUnit: 'day' | 'hour' | 'minute';
-  dataType: 'traces' | 'logs' | 'metrics' | 'custom';
-  avgDocumentSizeKB?: number;
+  dataType: 'traces' | 'logs' | 'metrics' | 'custom'; // traces, logs, metrics assume OTLP format
+  avgDocumentSizeKB?: number; // Required for 'custom', optional for OTLP types (uses defaults)
 }
 
 export interface InfrastructureNodes {
