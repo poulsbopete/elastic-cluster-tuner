@@ -128,24 +128,28 @@ export default function Home() {
               />
             )}
 
-            <InfrastructureNodesComponent
-              infrastructure={infrastructureNodes}
-              onChange={setInfrastructureNodes}
-            />
+            {deploymentType !== 'serverless' && (
+              <>
+                <InfrastructureNodesComponent
+                  infrastructure={infrastructureNodes}
+                  onChange={setInfrastructureNodes}
+                />
 
-            <div>
-              <h2 className="text-xl font-semibold mb-4 text-elastic-dark">Tier Configuration</h2>
-              <div className="space-y-4">
-                {tiers.map((tier, index) => (
-                  <TierConfigComponent
-                    key={tier.type}
-                    tier={tier}
-                    deploymentType={deploymentType}
-                    onChange={(updatedTier) => handleTierChange(index, updatedTier)}
-                  />
-                ))}
-              </div>
-            </div>
+                <div>
+                  <h2 className="text-xl font-semibold mb-4 text-elastic-dark">Tier Configuration</h2>
+                  <div className="space-y-4">
+                    {tiers.map((tier, index) => (
+                      <TierConfigComponent
+                        key={tier.type}
+                        tier={tier}
+                        deploymentType={deploymentType}
+                        onChange={(updatedTier) => handleTierChange(index, updatedTier)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="bg-elastic-blue-light border border-elastic-blue rounded-lg p-4">
               <h3 className="font-semibold text-elastic-dark mb-2">Configuration Summary</h3>
