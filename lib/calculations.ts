@@ -1,4 +1,7 @@
 import { ClusterConfig, PerformanceMetrics, TierConfig, TierType, HardwareProfile } from '@/types';
+import { getSKUById } from './skus';
+import { volumeToDocsPerSecond } from './ingestVolume';
+import { calculateStorageRequirements, compareToPBScale } from './pbScaleRecommendations';
 
 // Hardware profiles with realistic specifications
 export const HARDWARE_PROFILES: Record<string, HardwareProfile> = {
@@ -83,20 +86,29 @@ const TIER_PERFORMANCE_MULTIPLIERS: Record<TierType, { ingest: number; query: nu
   deep_freeze: { ingest: 0.05, query: 0.1 },
 };
 
-// Base performance per node (assuming optimal hot tier SSD configuration)
-const BASE_INGEST_PER_NODE = 50000; // documents per second
+// Base performance per node (based on real-world PB-scale testing)
+// For 64GB RAM, 32 vCPU, 4TB SSD nodes (Elastic PB-scale recommendation)
+// Default: 2000 ops/core (as mentioned in calls), QA range: 2000-2500 ops/core
+const DEFAULT_OPS_PER_CORE = 2000; // operations per CPU core per second
 const BASE_QUERY_LATENCY = 50; // milliseconds for hot tier SSD
 
-function calculateTierIngestCapacity(tier: TierConfig): number {
+function calculateTierIngestCapacity(tier: TierConfig, opsPerCore: number = DEFAULT_OPS_PER_CORE): number {
   if (!tier.enabled) return 0;
 
   const multiplier = TIER_PERFORMANCE_MULTIPLIERS[tier.type];
   const storageMultiplier = tier.storageType === 'nvme' ? 1.2 : tier.storageType === 'ssd' ? 1.0 : 0.3;
-  const cpuMultiplier = Math.min(tier.cpuCores / 8, 2); // Cap at 2x for very high CPU
-  const memoryMultiplier = Math.min(tier.memoryGB / 32, 1.5); // Cap at 1.5x for very high memory
+  
+  // Calculate base capacity: ops/core * CPU cores * node count
+  // This is the core calculation based on real-world testing
+  const baseOpsPerNode = opsPerCore * tier.cpuCores;
+  const baseCapacity = baseOpsPerNode * tier.nodeCount;
+  
+  // Apply tier and storage multipliers
+  // Note: CPU scaling is already handled by ops/core * cpuCores, so we don't need cpuMultiplier
+  // Memory multiplier: 64GB = 1.0x (PB-scale baseline), scales proportionally down for smaller configs
+  const memoryMultiplier = Math.min(tier.memoryGB / 64, 1.0); // Don't exceed baseline
 
-  const baseCapacity = BASE_INGEST_PER_NODE * tier.nodeCount;
-  return baseCapacity * multiplier.ingest * storageMultiplier * cpuMultiplier * memoryMultiplier;
+  return baseCapacity * multiplier.ingest * storageMultiplier * memoryMultiplier;
 }
 
 function calculateTierQueryLatency(tier: TierConfig): number {
@@ -122,10 +134,11 @@ function calculateTierIngestLatency(tier: TierConfig): number {
 
 export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceMetrics {
   const enabledTiers = config.tiers.filter(t => t.enabled);
+  const opsPerCore = config.opsPerCore || DEFAULT_OPS_PER_CORE;
   
   // Calculate total ingest capacity (weighted by tier)
   const totalIngestCapacity = enabledTiers.reduce((sum, tier) => {
-    return sum + calculateTierIngestCapacity(tier);
+    return sum + calculateTierIngestCapacity(tier, opsPerCore);
   }, 0);
 
   // Calculate weighted average query latency
@@ -151,11 +164,12 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
     ? ingestLatencies.reduce((sum, i) => sum + (i.latency * i.weight), 0) / totalWeight
     : 0;
 
-  // Calculate storage efficiency (SSD is more efficient for active data)
+  // Calculate total storage (raw capacity)
   const totalStorage = enabledTiers.reduce((sum, tier) => {
     return sum + (tier.storageSizeGB * tier.nodeCount);
   }, 0);
 
+  // Calculate storage efficiency (SSD is more efficient for active data)
   const efficientStorage = enabledTiers.reduce((sum, tier) => {
     const efficiency = tier.storageType === 'nvme' ? 1.0 : tier.storageType === 'ssd' ? 0.9 : 0.6;
     return sum + (tier.storageSizeGB * tier.nodeCount * efficiency);
@@ -163,9 +177,27 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
 
   const storageEfficiency = totalStorage > 0 ? (efficientStorage / totalStorage) * 100 : 0;
 
+  // Calculate compressed storage for cold/frozen tiers (53% reduction = 47% of original)
+  const compressionRatio = 0.53; // Based on Elastic's real-world testing
+  const compressedStorage = enabledTiers.reduce((sum, tier) => {
+    if (tier.type === 'cold' || tier.type === 'frozen' || tier.type === 'deep_freeze') {
+      // Apply compression to cold/frozen tiers
+      return sum + (tier.storageSizeGB * tier.nodeCount * (1 - compressionRatio));
+    }
+    return sum + (tier.storageSizeGB * tier.nodeCount);
+  }, 0);
+
   // Calculate cost estimate
   const monthlyCost = enabledTiers.reduce((sum, tier) => {
-    // Find matching hardware profile or estimate
+    // If SKU is selected, use SKU pricing
+    if (tier.skuId) {
+      const sku = getSKUById(tier.skuId);
+      if (sku) {
+        return sum + (sku.costPerMonth * tier.nodeCount);
+      }
+    }
+
+    // Otherwise, find matching hardware profile or estimate
     const profile = Object.values(HARDWARE_PROFILES).find(p =>
       p.storageType === tier.storageType &&
       Math.abs(p.storageSizeGB - tier.storageSizeGB) < 500 &&
@@ -182,17 +214,88 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
   // Tier breakdown
   const tierBreakdown = enabledTiers.map(tier => ({
     tier: tier.type,
-    ingestCapacity: calculateTierIngestCapacity(tier),
+    ingestCapacity: calculateTierIngestCapacity(tier, opsPerCore),
     queryPerformance: calculateTierQueryLatency(tier),
     storageUsed: tier.storageSizeGB * tier.nodeCount,
   }));
+
+  // Calculate expected ingest rate if volume is specified
+  let expectedIngestRate: number | undefined;
+  let capacityUtilization: number | undefined;
+  const recommendations: string[] = [];
+  
+  if (config.expectedIngestVolume && config.expectedIngestVolume.value > 0) {
+    expectedIngestRate = volumeToDocsPerSecond(
+      config.expectedIngestVolume,
+      config.expectedIngestVolume.dataType
+    );
+    capacityUtilization = totalIngestCapacity > 0
+      ? (expectedIngestRate / totalIngestCapacity) * 100
+      : undefined;
+
+    // Check if this is PB-scale and compare to recommendations
+    const dailyIngestPB = config.expectedIngestVolume.volumeUnit === 'PB' && 
+                          config.expectedIngestVolume.timeUnit === 'day'
+      ? config.expectedIngestVolume.value
+      : 0;
+
+    if (dailyIngestPB >= 0.3) { // PB-scale (0.3 PB/day or more)
+      const hotTier = enabledTiers.find(t => t.type === 'hot' && t.enabled);
+      const coldTier = enabledTiers.find(t => t.type === 'cold' && t.enabled);
+      const frozenTier = enabledTiers.find(t => t.type === 'frozen' && t.enabled);
+
+      if (hotTier && coldTier) {
+        const hotStorageTB = hotTier.storageSizeGB / 1024;
+        const coldStorageTB = coldTier.storageSizeGB / 1024;
+        const frozenStorageTB = frozenTier ? frozenTier.storageSizeGB / 1024 : 0;
+
+        const comparison = compareToPBScale(
+          hotTier.nodeCount,
+          hotStorageTB,
+          coldTier.nodeCount,
+          coldStorageTB,
+          frozenTier?.nodeCount || 0,
+          frozenStorageTB
+        );
+
+        if (!comparison.matches && comparison.differences.length > 0) {
+          recommendations.push('PB-scale recommendation: Consider matching Elastic\'s tested configuration for optimal performance.');
+          comparison.differences.forEach(diff => {
+            recommendations.push(`  • ${diff}`);
+          });
+        }
+
+        // Storage recommendations
+        if (dailyIngestPB >= 0.5) {
+          const required30DayStorage = calculateStorageRequirements(dailyIngestPB, 30, compressionRatio);
+          recommendations.push(`For ${dailyIngestPB} PB/day with 30-day retention: ~${required30DayStorage.toFixed(1)} PB compressed storage needed.`);
+          recommendations.push('Consider multiple clusters for PB-scale volumes with long retention periods.');
+        }
+      }
+    }
+  }
+
+  // Add infrastructure node costs if specified
+  let infrastructureCost = 0;
+  if (config.infrastructureNodes) {
+    const infra = config.infrastructureNodes;
+    // Estimate cost for infrastructure nodes (similar to data nodes but typically don't need storage)
+    const infraNodeCost = 400; // Base cost for 64GB/32vCPU nodes
+    infrastructureCost = (infra.masterNodes + infra.coordinatingNodes + infra.mlNodes + infra.kibanaNodes) * infraNodeCost;
+  }
 
   return {
     maxIngestRate: totalIngestCapacity,
     avgQueryLatency: Math.round(avgQueryLatency * 10) / 10,
     avgIngestLatency: Math.round(avgIngestLatency * 10) / 10,
     storageEfficiency: Math.round(storageEfficiency * 10) / 10,
-    costEstimate: Math.round(monthlyCost),
+    costEstimate: Math.round(monthlyCost + infrastructureCost),
+    expectedIngestRate: expectedIngestRate ? Math.round(expectedIngestRate) : undefined,
+    capacityUtilization: capacityUtilization ? Math.round(capacityUtilization * 10) / 10 : undefined,
+    totalStorageGB: totalStorage,
+    compressedStorageGB: compressedStorage > 0 ? Math.round(compressedStorage) : undefined,
+    recommendations: recommendations.length > 0 ? recommendations : undefined,
+    opsPerCore: opsPerCore, // Include in metrics for display
     tierBreakdown,
   };
 }
