@@ -84,7 +84,7 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
                 Unit
               </label>
               <select
-                value={volume.volumeUnit}
+                value={volume.volumeUnit || 'PB'}
                 onChange={(e) => handleChange('volumeUnit', e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-elastic-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-elastic-blue focus:border-elastic-blue text-gray-900"
               >
@@ -99,7 +99,7 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
                 Per
               </label>
               <select
-                value={volume.timeUnit}
+                value={volume.timeUnit || 'day'}
                 onChange={(e) => handleChange('timeUnit', e.target.value)}
                 className="w-full px-3 py-2 bg-white border border-elastic-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-elastic-blue focus:border-elastic-blue text-gray-900"
               >
@@ -115,7 +115,7 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
               Data Type
             </label>
             <select
-              value={volume.dataType}
+              value={volume.dataType || 'traces'}
               onChange={(e) => handleChange('dataType', e.target.value)}
               className="w-full px-3 py-2 bg-white border border-elastic-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-elastic-blue focus:border-elastic-blue text-gray-900"
             >
