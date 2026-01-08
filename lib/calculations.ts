@@ -87,9 +87,9 @@ const TIER_PERFORMANCE_MULTIPLIERS: Record<TierType, { ingest: number; query: nu
   deep_freeze: { ingest: 0.05, query: 0.1 },
 };
 
-// Base performance per node (based on real-world PB-scale testing)
-// For 64GB RAM, 32 vCPU, 4TB SSD nodes (Elastic PB-scale recommendation)
-// Default: 2000 ops/core (as mentioned in calls), QA range: 2000-2500 ops/core
+// Base performance per node (optimized for PB-scale workloads)
+// For 64GB RAM, 32 vCPU, 4TB SSD nodes (PB-scale recommendation)
+// Default: 2000 ops/core (recommended baseline), typical range: 2000-2500 ops/core
 const DEFAULT_OPS_PER_CORE = 2000; // operations per CPU core per second
 const BASE_QUERY_LATENCY = 50; // milliseconds for hot tier SSD
 
@@ -100,7 +100,7 @@ function calculateTierIngestCapacity(tier: TierConfig, opsPerCore: number = DEFA
   const storageMultiplier = tier.storageType === 'nvme' ? 1.2 : tier.storageType === 'ssd' ? 1.0 : 0.3;
   
   // Calculate base capacity: ops/core * CPU cores * node count
-  // This is the core calculation based on real-world testing
+  // This is the core calculation for performance estimation
   const baseOpsPerNode = opsPerCore * tier.cpuCores;
   const baseCapacity = baseOpsPerNode * tier.nodeCount;
   
@@ -179,7 +179,7 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
   const storageEfficiency = totalStorage > 0 ? (efficientStorage / totalStorage) * 100 : 0;
 
   // Calculate compressed storage for cold/frozen tiers (53% reduction = 47% of original)
-  const compressionRatio = 0.53; // Based on Elastic's real-world testing
+  const compressionRatio = 0.53; // Typical compression ratio for Elasticsearch data
   const compressedStorage = enabledTiers.reduce((sum, tier) => {
     if (tier.type === 'cold' || tier.type === 'frozen' || tier.type === 'deep_freeze') {
       // Apply compression to cold/frozen tiers
@@ -238,7 +238,7 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
           : 0;
         
         if (dailyIngestPB > 0) {
-          // Based on real-world: 0.5 PB/day = 15 PB for 30 days (with 53% compression)
+          // Example: 0.5 PB/day = 15 PB for 30 days (with 53% compression)
           const compressionRatio = 0.53;
           const blobStoragePB = dailyIngestPB * 30 * (1 - compressionRatio);
           const blobStorageGB = blobStoragePB * 1024;
@@ -314,7 +314,7 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
         );
 
         if (!comparison.matches && comparison.differences.length > 0) {
-          recommendations.push('PB-scale recommendation: Consider matching Elastic\'s tested configuration for optimal performance.');
+          recommendations.push('PB-scale recommendation: Consider matching the recommended PB-scale configuration for optimal performance.');
           comparison.differences.forEach(diff => {
             recommendations.push(`  • ${diff}`);
           });

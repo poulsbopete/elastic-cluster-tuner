@@ -23,7 +23,7 @@ export default function Home() {
   ]);
   const [expectedIngestVolume, setExpectedIngestVolume] = useState<IngestVolumeConfig | undefined>(undefined);
   const [infrastructureNodes, setInfrastructureNodes] = useState<InfrastructureNodes | undefined>(undefined);
-  const [opsPerCore, setOpsPerCore] = useState<number>(2000); // Default: 2000 ops/core as mentioned in calls
+  const [opsPerCore, setOpsPerCore] = useState<number>(2000); // Default: 2000 ops/core (recommended baseline)
 
   // Load from localStorage on mount (client-side only)
   useEffect(() => {

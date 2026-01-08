@@ -1,7 +1,7 @@
 import { HardwareSKU, DeploymentType } from '@/types';
 
-// Hardware SKUs based on Elastic Cloud pricing table structure
-// These represent real-world instance types available across different cloud providers
+// Hardware SKUs based on cloud provider instance types
+// These represent standard instance types available across different cloud providers
 export const HARDWARE_SKUS: HardwareSKU[] = [
   // Elastic Cloud SKUs (similar to cloud.elastic.co pricing)
   {
@@ -228,7 +228,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     deploymentTypes: ['aws'],
   },
 
-  // AWS Tested PB-Scale Configurations (based on real-world testing)
+  // AWS PB-Scale Configurations (optimized for petabyte-scale workloads)
   {
     id: 'aws-pb-hot',
     name: 'PB-Scale Hot Tier',
@@ -245,7 +245,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'aws-pb-cold',
     name: 'PB-Scale Cold Tier',
-    description: 'Tested: 60 nodes, 24-hour lookback',
+    description: 'Recommended: 60 nodes, 24-hour lookback',
     storageType: 'ssd',
     storageSizeGB: 10240, // 10 TB
     cpuCores: 32,
@@ -258,7 +258,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'aws-pb-frozen',
     name: 'PB-Scale Frozen Tier',
-    description: 'Tested: 66 nodes, searchable snapshots',
+    description: 'Recommended: 66 nodes, searchable snapshots',
     storageType: 'hdd',
     storageSizeGB: 10240, // 10 TB
     cpuCores: 32,
@@ -271,7 +271,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'aws-pb-master',
     name: 'PB-Scale Master Node',
-    description: 'Tested: 3 nodes, no data storage',
+    description: 'Recommended: 3 nodes, no data storage',
     storageType: 'ssd',
     storageSizeGB: 100,
     cpuCores: 32,
@@ -284,7 +284,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'aws-pb-ml',
     name: 'PB-Scale ML Node',
-    description: 'Tested: 1 node, machine learning',
+    description: 'Recommended: 1 node, machine learning',
     storageType: 'ssd',
     storageSizeGB: 100,
     cpuCores: 32,
@@ -297,7 +297,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'aws-pb-kibana',
     name: 'PB-Scale Kibana/UI Node',
-    description: 'Tested: 2 nodes, UI interface',
+    description: 'Recommended: 2 nodes, UI interface',
     storageType: 'ssd',
     storageSizeGB: 100,
     cpuCores: 32,
@@ -414,13 +414,13 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     deploymentTypes: ['gcp'],
   },
 
-  // GCP Tested PB-Scale Configurations (based on real-world testing)
+  // GCP PB-Scale Configurations (optimized for petabyte-scale workloads)
   // Note: Cost shown is compute only. Storage costs are calculated separately.
   // Compute: $331,000/mo for 292 nodes = ~$1,134/node/month
   {
     id: 'gcp-pb-hot',
     name: 'PB-Scale Hot Tier',
-    description: 'Tested: 160 nodes, 0-hour retention',
+    description: 'Recommended: 160 nodes, 0-hour retention',
     storageType: 'ssd',
     storageSizeGB: 4096, // 4 TB
     cpuCores: 32,
@@ -433,7 +433,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'gcp-pb-cold',
     name: 'PB-Scale Cold Tier',
-    description: 'Tested: 60 nodes, 24-hour lookback',
+    description: 'Recommended: 60 nodes, 24-hour lookback',
     storageType: 'ssd',
     storageSizeGB: 10240, // 10 TB
     cpuCores: 32,
@@ -446,7 +446,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'gcp-pb-frozen',
     name: 'PB-Scale Frozen Tier',
-    description: 'Tested: 66 nodes, searchable snapshots',
+    description: 'Recommended: 66 nodes, searchable snapshots',
     storageType: 'hdd', // Frozen tier uses HDD for cache, blob storage separate
     storageSizeGB: 10240, // 10 TB (cache), blob storage calculated separately
     cpuCores: 32,
@@ -459,7 +459,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'gcp-pb-master',
     name: 'PB-Scale Master Node',
-    description: 'Tested: 3 nodes, no data storage',
+    description: 'Recommended: 3 nodes, no data storage',
     storageType: 'ssd',
     storageSizeGB: 100, // Minimal storage for OS/Elastic
     cpuCores: 32,
@@ -472,7 +472,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'gcp-pb-ml',
     name: 'PB-Scale ML Node',
-    description: 'Tested: 1 node, machine learning',
+    description: 'Recommended: 1 node, machine learning',
     storageType: 'ssd',
     storageSizeGB: 100, // Minimal storage
     cpuCores: 32,
@@ -485,7 +485,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'gcp-pb-kibana',
     name: 'PB-Scale Kibana/UI Node',
-    description: 'Tested: 2 nodes, UI interface',
+    description: 'Recommended: 2 nodes, UI interface',
     storageType: 'ssd',
     storageSizeGB: 100, // Minimal storage
     cpuCores: 32,
@@ -576,7 +576,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     deploymentTypes: ['azure'],
   },
 
-  // Azure Tested PB-Scale Configurations (based on real-world testing)
+  // Azure PB-Scale Configurations (optimized for petabyte-scale workloads)
   {
     id: 'azure-pb-hot',
     name: 'PB-Scale Hot Tier',
@@ -593,7 +593,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'azure-pb-cold',
     name: 'PB-Scale Cold Tier',
-    description: 'Tested: 60 nodes, 24-hour lookback',
+    description: 'Recommended: 60 nodes, 24-hour lookback',
     storageType: 'ssd',
     storageSizeGB: 10240, // 10 TB
     cpuCores: 32,
@@ -606,7 +606,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'azure-pb-frozen',
     name: 'PB-Scale Frozen Tier',
-    description: 'Tested: 66 nodes, searchable snapshots',
+    description: 'Recommended: 66 nodes, searchable snapshots',
     storageType: 'hdd',
     storageSizeGB: 10240, // 10 TB
     cpuCores: 32,
@@ -619,7 +619,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'azure-pb-master',
     name: 'PB-Scale Master Node',
-    description: 'Tested: 3 nodes, no data storage',
+    description: 'Recommended: 3 nodes, no data storage',
     storageType: 'ssd',
     storageSizeGB: 100,
     cpuCores: 32,
@@ -632,7 +632,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'azure-pb-ml',
     name: 'PB-Scale ML Node',
-    description: 'Tested: 1 node, machine learning',
+    description: 'Recommended: 1 node, machine learning',
     storageType: 'ssd',
     storageSizeGB: 100,
     cpuCores: 32,
@@ -645,7 +645,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   {
     id: 'azure-pb-kibana',
     name: 'PB-Scale Kibana/UI Node',
-    description: 'Tested: 2 nodes, UI interface',
+    description: 'Recommended: 2 nodes, UI interface',
     storageType: 'ssd',
     storageSizeGB: 100,
     cpuCores: 32,

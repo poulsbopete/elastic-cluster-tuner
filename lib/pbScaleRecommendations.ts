@@ -1,5 +1,5 @@
-// Real-world PB-scale sizing recommendations based on Elastic testing
-// Source: Elastic recommendation for PB ingest + searches at PB scale
+// PB-scale sizing recommendations for petabyte-scale workloads
+// Optimized for high-volume ingest and search at scale
 
 export interface PBScaleRecommendation {
   hot: {
@@ -34,7 +34,7 @@ export interface PBScaleRecommendation {
   };
 }
 
-// Elastic's PB-scale recommendation (for ~0.5 PB/day ingest)
+// PB-scale recommendation (for ~0.5 PB/day ingest)
 export const ELASTIC_PB_SCALE_RECOMMENDATION: PBScaleRecommendation = {
   hot: {
     nodes: 160,

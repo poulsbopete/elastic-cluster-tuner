@@ -31,9 +31,9 @@ export default function PerformanceSettings({ opsPerCore, onChange }: Performanc
             className="w-full px-3 py-2 bg-white border border-elastic-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-elastic-blue focus:border-elastic-blue text-gray-900 placeholder-elastic-gray-400"
           />
           <div className="mt-2 text-xs text-elastic-gray-600 space-y-1">
-            <p>• Default: 2000 ops/core (as mentioned in calls)</p>
-            <p>• QA range: 2000-2500 ops/core</p>
-            <p>• Testing shows consistent performance in this range</p>
+            <p>• Default: 2000 ops/core (recommended baseline)</p>
+            <p>• Typical range: 2000-2500 ops/core</p>
+            <p>• Performance is consistent within this range</p>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-// Storage pricing per TB/month based on real-world GCP pricing
+// Storage pricing per TB/month based on cloud provider pricing
 // These are separate from compute costs
 
 export interface StoragePricing {
@@ -9,7 +9,7 @@ export interface StoragePricing {
   frozenBlob: number; // $/TB/month for frozen tier blob storage (GCS/S3)
 }
 
-// GCP Storage Pricing (based on real-world costs)
+// GCP Storage Pricing
 export const GCP_STORAGE_PRICING: StoragePricing = {
   hotSSD: 170,        // $109,000/mo for 640 TB = ~$170/TB/mo
   coldHDD: 40,        // $24,000/mo for 600 TB = ~$40/TB/mo
