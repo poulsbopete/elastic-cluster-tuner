@@ -26,10 +26,26 @@ export function loadConfig(): SavedConfig | null {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved) as SavedConfig;
+      const parsed = JSON.parse(saved) as SavedConfig;
+      
+      // Validate and fix expectedIngestVolume if it exists but is missing required fields
+      if (parsed.expectedIngestVolume) {
+        const vol = parsed.expectedIngestVolume;
+        if (!vol.dataType) vol.dataType = 'traces';
+        if (!vol.volumeUnit) vol.volumeUnit = 'PB';
+        if (!vol.timeUnit) vol.timeUnit = 'day';
+      }
+      
+      return parsed;
     }
   } catch (error) {
     console.error('Failed to load configuration from localStorage:', error);
+    // Clear corrupted data
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {
+      // Ignore
+    }
   }
   
   return null;

@@ -25,7 +25,7 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
     onChange({ ...volume, [field]: value });
   };
 
-  const expectedDocsPerSecond = volume && volume.value > 0
+  const expectedDocsPerSecond = volume && volume.value > 0 && volume.dataType
     ? volumeToDocsPerSecond(volume, volume.dataType)
     : undefined;
 

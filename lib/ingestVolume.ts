@@ -47,7 +47,7 @@ export function volumeToDocsPerSecond(
     custom: 1.0, // Default assumption (user must specify avgDocumentSizeKB for custom)
   };
 
-  const avgDocSizeKB = volume.avgDocumentSizeKB || defaultDocSizes[dataType];
+  const avgDocSizeKB = volume.avgDocumentSizeKB || defaultDocSizes[dataType] || defaultDocSizes['custom'];
   const avgDocSizeBytes = avgDocSizeKB * 1024;
 
   // Convert volume to bytes per second
