@@ -10,6 +10,7 @@ import DeploymentSelector from '@/components/DeploymentSelector';
 import IngestVolumeInput from '@/components/IngestVolumeInput';
 import InfrastructureNodesComponent from '@/components/InfrastructureNodes';
 import PerformanceSettings from '@/components/PerformanceSettings';
+import ServerlessPricingInfo from '@/components/ServerlessPricingInfo';
 
 export default function Home() {
   const [isHydrated, setIsHydrated] = useState(false);
@@ -117,6 +118,13 @@ export default function Home() {
               onChange={setExpectedIngestVolume}
               maxIngestRate={performanceMetrics.maxIngestRate}
             />
+
+            {deploymentType === 'serverless' && (
+              <ServerlessPricingInfo
+                expectedIngestVolume={expectedIngestVolume}
+                tier="complete"
+              />
+            )}
 
             <InfrastructureNodesComponent
               infrastructure={infrastructureNodes}

@@ -19,6 +19,24 @@ export default function HardwareSKUSelector({
 }: HardwareSKUSelectorProps) {
   const skus = getSKUsForDeployment(deploymentType as any);
 
+  // Serverless doesn't use SKUs - pricing is based on ingest/retention/egress
+  if (deploymentType === 'serverless') {
+    return (
+      <div className="bg-elastic-blue-light border border-elastic-blue rounded-lg p-4">
+        <p className="text-sm text-elastic-dark font-medium mb-2">
+          Serverless Pricing Model
+        </p>
+        <p className="text-xs text-elastic-gray-700">
+          Elastic Serverless uses consumption-based pricing (ingest, retention, egress) rather than fixed SKUs.
+          Costs are calculated automatically based on your expected ingest volume.
+        </p>
+        <p className="text-xs text-elastic-gray-600 mt-2">
+          Configure your expected ingest volume above to see serverless cost estimates.
+        </p>
+      </div>
+    );
+  }
+
   if (skus.length === 0) {
     return (
       <div className="bg-elastic-gray-50 border border-elastic-gray-200 rounded-lg p-4">

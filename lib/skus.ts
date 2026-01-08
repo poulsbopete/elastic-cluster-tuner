@@ -723,46 +723,8 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     deploymentTypes: ['on_prem'],
   },
 
-  // Serverless (Elastic Serverless)
-  {
-    id: 'serverless-basic',
-    name: 'Serverless Basic',
-    description: 'Pay per use',
-    storageType: 'ssd',
-    storageSizeGB: 100,
-    cpuCores: 2,
-    memoryGB: 4,
-    iops: 3000,
-    throughputMBps: 250,
-    costPerMonth: 0, // Pay per use
-    deploymentTypes: ['serverless'],
-  },
-  {
-    id: 'serverless-standard',
-    name: 'Serverless Standard',
-    description: 'Pay per use',
-    storageType: 'ssd',
-    storageSizeGB: 500,
-    cpuCores: 4,
-    memoryGB: 8,
-    iops: 10000,
-    throughputMBps: 1000,
-    costPerMonth: 0, // Pay per use
-    deploymentTypes: ['serverless'],
-  },
-  {
-    id: 'serverless-premium',
-    name: 'Serverless Premium',
-    description: 'Pay per use',
-    storageType: 'nvme',
-    storageSizeGB: 1000,
-    cpuCores: 8,
-    memoryGB: 16,
-    iops: 20000,
-    throughputMBps: 2000,
-    costPerMonth: 0, // Pay per use
-    deploymentTypes: ['serverless'],
-  },
+  // Note: Serverless doesn't use SKUs - pricing is consumption-based (ingest/retention/egress)
+  // See serverlessPricing.ts for pricing calculations
 ];
 
 export function getSKUsForDeployment(deploymentType: DeploymentType): HardwareSKU[] {

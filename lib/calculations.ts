@@ -2,6 +2,7 @@ import { ClusterConfig, PerformanceMetrics, TierConfig, TierType, HardwareProfil
 import { getSKUById } from './skus';
 import { volumeToDocsPerSecond } from './ingestVolume';
 import { calculateStorageRequirements, compareToPBScale } from './pbScaleRecommendations';
+import { calculateServerlessCost, convertVolumeToGB } from './serverlessPricing';
 import { calculateStorageCost, COMPUTE_PRICING } from './storagePricing';
 
 // Hardware profiles with realistic specifications
@@ -188,7 +189,114 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
     return sum + (tier.storageSizeGB * tier.nodeCount);
   }, 0);
 
-  // Calculate compute cost (separate from storage)
+  // Tier breakdown (needed for both serverless and non-serverless)
+  const tierBreakdown = enabledTiers.map(tier => ({
+    tier: tier.type,
+    ingestCapacity: calculateTierIngestCapacity(tier, opsPerCore),
+    queryPerformance: calculateTierQueryLatency(tier),
+    storageUsed: tier.storageSizeGB * tier.nodeCount,
+  }));
+
+  // Calculate expected ingest rate if volume is specified (needed before serverless calculation)
+  let expectedIngestRate: number | undefined;
+  let capacityUtilization: number | undefined;
+  const recommendations: string[] = [];
+  
+  if (config.expectedIngestVolume && config.expectedIngestVolume.value > 0) {
+    expectedIngestRate = volumeToDocsPerSecond(
+      config.expectedIngestVolume,
+      config.expectedIngestVolume.dataType
+    );
+    capacityUtilization = totalIngestCapacity > 0
+      ? (expectedIngestRate / totalIngestCapacity) * 100
+      : undefined;
+
+    // Check if this is PB-scale and compare to recommendations
+    const dailyIngestPB = config.expectedIngestVolume.volumeUnit === 'PB' && 
+                          config.expectedIngestVolume.timeUnit === 'day'
+      ? config.expectedIngestVolume.value
+      : 0;
+
+    if (dailyIngestPB >= 0.3) { // PB-scale (0.3 PB/day or more)
+      const hotTier = enabledTiers.find(t => t.type === 'hot' && t.enabled);
+      const coldTier = enabledTiers.find(t => t.type === 'cold' && t.enabled);
+      const frozenTier = enabledTiers.find(t => t.type === 'frozen' && t.enabled);
+
+      if (hotTier && coldTier) {
+        const hotStorageTB = hotTier.storageSizeGB / 1024;
+        const coldStorageTB = coldTier.storageSizeGB / 1024;
+        const frozenStorageTB = frozenTier ? frozenTier.storageSizeGB / 1024 : 0;
+
+        const comparison = compareToPBScale(
+          hotTier.nodeCount,
+          hotStorageTB,
+          coldTier.nodeCount,
+          coldStorageTB,
+          frozenTier?.nodeCount || 0,
+          frozenStorageTB
+        );
+
+        if (!comparison.matches && comparison.differences.length > 0) {
+          recommendations.push('PB-scale recommendation: Consider matching the recommended PB-scale configuration for optimal performance.');
+          comparison.differences.forEach(diff => {
+            recommendations.push(`  • ${diff}`);
+          });
+        }
+
+        // Storage recommendations
+        if (dailyIngestPB >= 0.5) {
+          const compressionRatio = 0.53;
+          const required30DayStorage = calculateStorageRequirements(dailyIngestPB, 30, compressionRatio);
+          recommendations.push(`For ${dailyIngestPB} PB/day with 30-day retention: ~${required30DayStorage.toFixed(1)} PB compressed storage needed.`);
+          recommendations.push('Consider multiple clusters for PB-scale volumes with long retention periods.');
+        }
+      }
+    }
+  }
+
+  // For serverless, use consumption-based pricing instead of compute/storage
+  if (config.deploymentType === 'serverless') {
+    let serverlessCost = 0;
+    
+    if (config.expectedIngestVolume && config.expectedIngestVolume.value > 0) {
+      // Calculate serverless costs based on ingest volume
+      const monthlyIngestGB = convertVolumeToGB(
+        config.expectedIngestVolume.value,
+        config.expectedIngestVolume.volumeUnit,
+        config.expectedIngestVolume.timeUnit
+      );
+
+      // Use Complete tier by default (can be made configurable)
+      const serverlessPricing = calculateServerlessCost({
+        ingestGB: monthlyIngestGB,
+        retentionGB: monthlyIngestGB * 0.5, // Assume 50% average retention
+        egressGB: 0, // User can estimate separately
+        tier: 'complete',
+      });
+
+      serverlessCost = serverlessPricing.totalCost;
+    }
+
+    // For serverless, return early with serverless-specific cost structure
+    return {
+      maxIngestRate: totalIngestCapacity,
+      avgQueryLatency: Math.round(avgQueryLatency * 10) / 10,
+      avgIngestLatency: Math.round(avgIngestLatency * 10) / 10,
+      storageEfficiency: Math.round(storageEfficiency * 10) / 10,
+      costEstimate: Math.round(serverlessCost),
+      computeCost: undefined, // Not applicable for serverless
+      storageCost: undefined, // Not applicable for serverless
+      expectedIngestRate: expectedIngestRate ? Math.round(expectedIngestRate) : undefined,
+      capacityUtilization: capacityUtilization ? Math.round(capacityUtilization * 10) / 10 : undefined,
+      totalStorageGB: totalStorage,
+      compressedStorageGB: compressedStorage > 0 ? Math.round(compressedStorage) : undefined,
+      recommendations: recommendations.length > 0 ? recommendations : undefined,
+      opsPerCore: opsPerCore,
+      tierBreakdown,
+    };
+  }
+
+  // Calculate compute cost (separate from storage) - for non-serverless deployments
   const computeCost = enabledTiers.reduce((sum, tier) => {
     // If SKU is selected, check if it's a PB-scale tested SKU (compute only)
     if (tier.skuId) {
@@ -266,69 +374,6 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
 
   const totalStorageCost = storageCost + frozenBlobStorageCost;
 
-  // Tier breakdown
-  const tierBreakdown = enabledTiers.map(tier => ({
-    tier: tier.type,
-    ingestCapacity: calculateTierIngestCapacity(tier, opsPerCore),
-    queryPerformance: calculateTierQueryLatency(tier),
-    storageUsed: tier.storageSizeGB * tier.nodeCount,
-  }));
-
-  // Calculate expected ingest rate if volume is specified
-  let expectedIngestRate: number | undefined;
-  let capacityUtilization: number | undefined;
-  const recommendations: string[] = [];
-  
-  if (config.expectedIngestVolume && config.expectedIngestVolume.value > 0) {
-    expectedIngestRate = volumeToDocsPerSecond(
-      config.expectedIngestVolume,
-      config.expectedIngestVolume.dataType
-    );
-    capacityUtilization = totalIngestCapacity > 0
-      ? (expectedIngestRate / totalIngestCapacity) * 100
-      : undefined;
-
-    // Check if this is PB-scale and compare to recommendations
-    const dailyIngestPB = config.expectedIngestVolume.volumeUnit === 'PB' && 
-                          config.expectedIngestVolume.timeUnit === 'day'
-      ? config.expectedIngestVolume.value
-      : 0;
-
-    if (dailyIngestPB >= 0.3) { // PB-scale (0.3 PB/day or more)
-      const hotTier = enabledTiers.find(t => t.type === 'hot' && t.enabled);
-      const coldTier = enabledTiers.find(t => t.type === 'cold' && t.enabled);
-      const frozenTier = enabledTiers.find(t => t.type === 'frozen' && t.enabled);
-
-      if (hotTier && coldTier) {
-        const hotStorageTB = hotTier.storageSizeGB / 1024;
-        const coldStorageTB = coldTier.storageSizeGB / 1024;
-        const frozenStorageTB = frozenTier ? frozenTier.storageSizeGB / 1024 : 0;
-
-        const comparison = compareToPBScale(
-          hotTier.nodeCount,
-          hotStorageTB,
-          coldTier.nodeCount,
-          coldStorageTB,
-          frozenTier?.nodeCount || 0,
-          frozenStorageTB
-        );
-
-        if (!comparison.matches && comparison.differences.length > 0) {
-          recommendations.push('PB-scale recommendation: Consider matching the recommended PB-scale configuration for optimal performance.');
-          comparison.differences.forEach(diff => {
-            recommendations.push(`  • ${diff}`);
-          });
-        }
-
-        // Storage recommendations
-        if (dailyIngestPB >= 0.5) {
-          const required30DayStorage = calculateStorageRequirements(dailyIngestPB, 30, compressionRatio);
-          recommendations.push(`For ${dailyIngestPB} PB/day with 30-day retention: ~${required30DayStorage.toFixed(1)} PB compressed storage needed.`);
-          recommendations.push('Consider multiple clusters for PB-scale volumes with long retention periods.');
-        }
-      }
-    }
-  }
 
   // Add infrastructure node costs if specified (compute only, minimal storage)
   let infrastructureCost = 0;
