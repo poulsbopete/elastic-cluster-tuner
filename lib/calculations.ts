@@ -1,5 +1,3 @@
-'use client';
-
 import { ClusterConfig, PerformanceMetrics, TierConfig, TierType, HardwareProfile } from '@/types';
 import { getSKUById } from './skus';
 import { volumeToDocsPerSecond } from './ingestVolume';
