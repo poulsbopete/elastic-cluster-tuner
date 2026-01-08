@@ -166,7 +166,7 @@ export default function Home() {
 
           {/* Performance Metrics Panel */}
           <div className="lg:col-span-1">
-            <PerformanceMetrics metrics={performanceMetrics} />
+            <PerformanceMetrics metrics={performanceMetrics} deploymentType={deploymentType} />
           </div>
         </div>
       </main>
