@@ -194,9 +194,9 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
                       ⚠️ Near capacity. Consider adding headroom for peak loads.
                     </p>
                   )}
-                  {!isNearCapacity && capacityUtilization < 80 && (
+                  {!isNearCapacity && capacityUtilization && capacityUtilization < 80 && (
                     <p className="text-xs text-green-600 mt-2">
-                      ✓ Configuration has sufficient capacity with {100 - capacityUtilization.toFixed(1)}% headroom.
+                      ✓ Configuration has sufficient capacity with {(100 - capacityUtilization).toFixed(1)}% headroom.
                     </p>
                   )}
                 </div>
