@@ -108,10 +108,12 @@ export default function Home() {
               onChange={handleDeploymentTypeChange}
             />
 
-            <PerformanceSettings
-              opsPerCore={opsPerCore}
-              onChange={setOpsPerCore}
-            />
+            {deploymentType !== 'serverless' && (
+              <PerformanceSettings
+                opsPerCore={opsPerCore}
+                onChange={setOpsPerCore}
+              />
+            )}
 
             <IngestVolumeInput
               volume={expectedIngestVolume}
