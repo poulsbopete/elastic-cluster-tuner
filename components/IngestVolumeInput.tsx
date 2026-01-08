@@ -8,9 +8,10 @@ interface IngestVolumeInputProps {
   volume: IngestVolumeConfig | undefined;
   onChange: (volume: IngestVolumeConfig | undefined) => void;
   maxIngestRate: number;
+  deploymentType?: string; // Optional to determine if we should show capacity warnings
 }
 
-export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: IngestVolumeInputProps) {
+export default function IngestVolumeInput({ volume, onChange, maxIngestRate, deploymentType }: IngestVolumeInputProps) {
   const handleChange = (field: keyof IngestVolumeConfig, value: any) => {
     if (!volume) {
       // Initialize with defaults
@@ -29,7 +30,9 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
     ? volumeToDocsPerSecond(volume, volume.dataType)
     : undefined;
 
-  const capacityUtilization = expectedDocsPerSecond && maxIngestRate > 0
+  // For serverless, don't show capacity warnings (no max capacity concept)
+  const isServerless = deploymentType === 'serverless';
+  const capacityUtilization = !isServerless && expectedDocsPerSecond && maxIngestRate > 0
     ? (expectedDocsPerSecond / maxIngestRate) * 100
     : undefined;
 
@@ -148,7 +151,9 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
 
           {expectedDocsPerSecond && (
             <div className={`border rounded-lg p-4 ${
-              isOverCapacity
+              isServerless
+                ? 'bg-blue-50 border-blue-200'
+                : isOverCapacity
                 ? 'bg-red-50 border-red-200'
                 : isNearCapacity
                 ? 'bg-yellow-50 border-yellow-200'
@@ -160,13 +165,17 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
                   {formatDocsPerSecond(expectedDocsPerSecond)}
                 </span>
               </div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-elastic-dark">Max Capacity</span>
-                <span className="text-sm font-bold text-elastic-dark">
-                  {formatDocsPerSecond(maxIngestRate)}
-                </span>
-              </div>
-              {capacityUtilization !== undefined && (
+              {!isServerless && (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-elastic-dark">Max Capacity</span>
+                    <span className="text-sm font-bold text-elastic-dark">
+                      {formatDocsPerSecond(maxIngestRate)}
+                    </span>
+                  </div>
+                </>
+              )}
+              {!isServerless && capacityUtilization !== undefined && (
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-elastic-gray-700">Capacity Utilization</span>
@@ -200,6 +209,11 @@ export default function IngestVolumeInput({ volume, onChange, maxIngestRate }: I
                     </p>
                   )}
                 </div>
+              )}
+              {isServerless && (
+                <p className="text-xs text-blue-600 mt-2">
+                  ℹ️ Serverless automatically scales to handle your ingest volume. No capacity limits to configure.
+                </p>
               )}
             </div>
           )}

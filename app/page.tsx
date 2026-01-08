@@ -119,6 +119,7 @@ export default function Home() {
               volume={expectedIngestVolume}
               onChange={setExpectedIngestVolume}
               maxIngestRate={performanceMetrics.maxIngestRate}
+              deploymentType={deploymentType}
             />
 
             {deploymentType === 'serverless' && (
@@ -151,14 +152,16 @@ export default function Home() {
               </>
             )}
 
-            <div className="bg-elastic-blue-light border border-elastic-blue rounded-lg p-4">
-              <h3 className="font-semibold text-elastic-dark mb-2">Configuration Summary</h3>
-              <div className="text-sm text-elastic-gray-700 space-y-1">
-                <div>Total Nodes: <strong className="text-elastic-dark">{clusterConfig.totalNodes}</strong></div>
-                <div>Enabled Tiers: <strong className="text-elastic-dark">{tiers.filter(t => t.enabled).length}</strong></div>
-                <div>Deployment: <strong className="text-elastic-dark capitalize">{deploymentType.replace('_', ' ')}</strong></div>
+            {deploymentType !== 'serverless' && (
+              <div className="bg-elastic-blue-light border border-elastic-blue rounded-lg p-4">
+                <h3 className="font-semibold text-elastic-dark mb-2">Configuration Summary</h3>
+                <div className="text-sm text-elastic-gray-700 space-y-1">
+                  <div>Total Nodes: <strong className="text-elastic-dark">{clusterConfig.totalNodes}</strong></div>
+                  <div>Enabled Tiers: <strong className="text-elastic-dark">{tiers.filter(t => t.enabled).length}</strong></div>
+                  <div>Deployment: <strong className="text-elastic-dark capitalize">{deploymentType.replace('_', ' ')}</strong></div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Performance Metrics Panel */}
