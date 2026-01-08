@@ -415,6 +415,8 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
   },
 
   // GCP Tested PB-Scale Configurations (based on real-world testing)
+  // Note: Cost shown is compute only. Storage costs are calculated separately.
+  // Compute: $331,000/mo for 292 nodes = ~$1,134/node/month
   {
     id: 'gcp-pb-hot',
     name: 'PB-Scale Hot Tier',
@@ -425,7 +427,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     memoryGB: 64,
     iops: 30000,
     throughputMBps: 3000,
-    costPerMonth: 800, // Estimated for 32 vCPU, 64GB RAM, 4TB SSD
+    costPerMonth: 1134, // Compute only: n2-standard-32 equivalent
     deploymentTypes: ['gcp'],
   },
   {
@@ -438,20 +440,20 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     memoryGB: 64,
     iops: 30000,
     throughputMBps: 3000,
-    costPerMonth: 1200, // Estimated for 32 vCPU, 64GB RAM, 10TB SSD
+    costPerMonth: 1134, // Compute only: n2-standard-32 equivalent
     deploymentTypes: ['gcp'],
   },
   {
     id: 'gcp-pb-frozen',
     name: 'PB-Scale Frozen Tier',
     description: 'Tested: 66 nodes, searchable snapshots',
-    storageType: 'hdd', // Frozen tier typically uses cheaper storage
-    storageSizeGB: 10240, // 10 TB
+    storageType: 'hdd', // Frozen tier uses HDD for cache, blob storage separate
+    storageSizeGB: 10240, // 10 TB (cache), blob storage calculated separately
     cpuCores: 32,
     memoryGB: 64,
     iops: 500,
     throughputMBps: 300,
-    costPerMonth: 1000, // Estimated for 32 vCPU, 64GB RAM, 10TB HDD
+    costPerMonth: 1134, // Compute only: n2-standard-32 equivalent
     deploymentTypes: ['gcp'],
   },
   {
@@ -464,7 +466,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     memoryGB: 64,
     iops: 30000,
     throughputMBps: 3000,
-    costPerMonth: 600, // Estimated for 32 vCPU, 64GB RAM, minimal storage
+    costPerMonth: 1134, // Compute only: n2-standard-32 equivalent
     deploymentTypes: ['gcp'],
   },
   {
@@ -477,7 +479,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     memoryGB: 64,
     iops: 30000,
     throughputMBps: 3000,
-    costPerMonth: 600,
+    costPerMonth: 1134, // Compute only: n2-standard-32 equivalent
     deploymentTypes: ['gcp'],
   },
   {
@@ -490,7 +492,7 @@ export const HARDWARE_SKUS: HardwareSKU[] = [
     memoryGB: 64,
     iops: 30000,
     throughputMBps: 3000,
-    costPerMonth: 600,
+    costPerMonth: 1134, // Compute only: n2-standard-32 equivalent
     deploymentTypes: ['gcp'],
   },
 

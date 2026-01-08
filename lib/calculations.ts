@@ -2,6 +2,7 @@ import { ClusterConfig, PerformanceMetrics, TierConfig, TierType, HardwareProfil
 import { getSKUById } from './skus';
 import { volumeToDocsPerSecond } from './ingestVolume';
 import { calculateStorageRequirements, compareToPBScale } from './pbScaleRecommendations';
+import { calculateStorageCost, COMPUTE_PRICING } from './storagePricing';
 
 // Hardware profiles with realistic specifications
 export const HARDWARE_PROFILES: Record<string, HardwareProfile> = {
@@ -187,29 +188,83 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
     return sum + (tier.storageSizeGB * tier.nodeCount);
   }, 0);
 
-  // Calculate cost estimate
-  const monthlyCost = enabledTiers.reduce((sum, tier) => {
-    // If SKU is selected, use SKU pricing
+  // Calculate compute cost (separate from storage)
+  const computeCost = enabledTiers.reduce((sum, tier) => {
+    // If SKU is selected, check if it's a PB-scale tested SKU (compute only)
     if (tier.skuId) {
       const sku = getSKUById(tier.skuId);
-      if (sku) {
-        return sum + (sku.costPerMonth * tier.nodeCount);
+      if (sku && sku.id.includes('pb-')) {
+        // For PB-scale SKUs, use compute pricing (storage is separate)
+        const computePrice = COMPUTE_PRICING[config.deploymentType] || 1134;
+        return sum + (computePrice * tier.nodeCount);
       }
+      // For regular SKUs, use SKU pricing (may include storage, but we'll separate it)
+      const skuComputePrice = COMPUTE_PRICING[config.deploymentType] || 1134;
+      return sum + (skuComputePrice * tier.nodeCount);
     }
 
-    // Otherwise, find matching hardware profile or estimate
-    const profile = Object.values(HARDWARE_PROFILES).find(p =>
-      p.storageType === tier.storageType &&
-      Math.abs(p.storageSizeGB - tier.storageSizeGB) < 500 &&
-      Math.abs(p.cpuCores - tier.cpuCores) <= 4 &&
-      Math.abs(p.memoryGB - tier.memoryGB) <= 16
-    );
-
-    const nodeCost = profile ? profile.costPerMonth : 
-      (tier.storageType === 'nvme' ? 1200 : tier.storageType === 'ssd' ? 300 : 150);
-    
-    return sum + (nodeCost * tier.nodeCount);
+    // Estimate compute cost based on deployment type
+    const computePrice = COMPUTE_PRICING[config.deploymentType] || 1134;
+    return sum + (computePrice * tier.nodeCount);
   }, 0);
+
+  // Calculate storage cost (separate from compute)
+  let storageCost = 0;
+  let frozenBlobStorageCost = 0;
+
+  enabledTiers.forEach(tier => {
+    if (!tier.enabled) return;
+    
+    const tierStorageGB = tier.storageSizeGB * tier.nodeCount;
+    
+    // For frozen tier, calculate both cache and blob storage
+    if (tier.type === 'frozen' || tier.type === 'deep_freeze') {
+      // Frozen tier uses both SSD cache (for searchable snapshots) and blob storage
+      // Cache storage (SSD on nodes)
+      storageCost += calculateStorageCost(
+        tierStorageGB,
+        'ssd', // Cache is always SSD
+        tier.type,
+        config.deploymentType,
+        false // Cache is not blob
+      );
+
+      // Blob storage (GCS/S3) - calculate based on expected ingest volume if available
+      if (config.expectedIngestVolume && config.expectedIngestVolume.value > 0) {
+        // Calculate blob storage needed for 30-day retention with compression
+        const dailyIngestPB = config.expectedIngestVolume.volumeUnit === 'PB' && 
+                              config.expectedIngestVolume.timeUnit === 'day'
+          ? config.expectedIngestVolume.value
+          : 0;
+        
+        if (dailyIngestPB > 0) {
+          // Based on real-world: 0.5 PB/day = 15 PB for 30 days (with 53% compression)
+          const compressionRatio = 0.53;
+          const blobStoragePB = dailyIngestPB * 30 * (1 - compressionRatio);
+          const blobStorageGB = blobStoragePB * 1024;
+          
+          // Use blob storage pricing (much cheaper)
+          frozenBlobStorageCost += calculateStorageCost(
+            blobStorageGB,
+            'hdd',
+            tier.type,
+            config.deploymentType,
+            true // Use blob storage
+          );
+        }
+      }
+    } else {
+      // Hot, warm, and cold tiers
+      storageCost += calculateStorageCost(
+        tierStorageGB,
+        tier.storageType,
+        tier.type,
+        config.deploymentType
+      );
+    }
+  });
+
+  const totalStorageCost = storageCost + frozenBlobStorageCost;
 
   // Tier breakdown
   const tierBreakdown = enabledTiers.map(tier => ({
@@ -275,21 +330,26 @@ export function calculatePerformanceMetrics(config: ClusterConfig): PerformanceM
     }
   }
 
-  // Add infrastructure node costs if specified
+  // Add infrastructure node costs if specified (compute only, minimal storage)
   let infrastructureCost = 0;
   if (config.infrastructureNodes) {
     const infra = config.infrastructureNodes;
-    // Estimate cost for infrastructure nodes (similar to data nodes but typically don't need storage)
-    const infraNodeCost = 400; // Base cost for 64GB/32vCPU nodes
-    infrastructureCost = (infra.masterNodes + infra.coordinatingNodes + infra.mlNodes + infra.kibanaNodes) * infraNodeCost;
+    // Infrastructure nodes use compute pricing (32 vCPU, 64GB RAM)
+    const infraComputePrice = COMPUTE_PRICING[config.deploymentType] || 1134;
+    const totalInfraNodes = infra.masterNodes + infra.coordinatingNodes + infra.mlNodes + infra.kibanaNodes;
+    infrastructureCost = totalInfraNodes * infraComputePrice;
   }
+
+  const totalMonthlyCost = computeCost + totalStorageCost + infrastructureCost;
 
   return {
     maxIngestRate: totalIngestCapacity,
     avgQueryLatency: Math.round(avgQueryLatency * 10) / 10,
     avgIngestLatency: Math.round(avgIngestLatency * 10) / 10,
     storageEfficiency: Math.round(storageEfficiency * 10) / 10,
-    costEstimate: Math.round(monthlyCost + infrastructureCost),
+    costEstimate: Math.round(totalMonthlyCost),
+    computeCost: Math.round(computeCost + infrastructureCost),
+    storageCost: Math.round(totalStorageCost),
     expectedIngestRate: expectedIngestRate ? Math.round(expectedIngestRate) : undefined,
     capacityUtilization: capacityUtilization ? Math.round(capacityUtilization * 10) / 10 : undefined,
     totalStorageGB: totalStorage,

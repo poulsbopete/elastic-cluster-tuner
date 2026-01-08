@@ -61,7 +61,9 @@ export interface PerformanceMetrics {
   avgQueryLatency: number; // milliseconds
   avgIngestLatency: number; // milliseconds
   storageEfficiency: number; // percentage
-  costEstimate: number; // monthly cost estimate
+  costEstimate: number; // monthly cost estimate (total)
+  computeCost?: number; // Compute cost separate
+  storageCost?: number; // Storage cost separate
   expectedIngestRate?: number; // Expected documents per second (if volume specified)
   capacityUtilization?: number; // Percentage of max capacity used
   totalStorageGB: number; // Total storage across all tiers

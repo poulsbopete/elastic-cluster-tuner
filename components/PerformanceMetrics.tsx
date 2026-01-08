@@ -97,11 +97,37 @@ export default function PerformanceMetrics({ metrics }: PerformanceMetricsProps)
 
       <div className="bg-white border border-elastic-gray-200 rounded-lg p-4">
         <h3 className="text-base font-semibold mb-3 text-elastic-dark">Estimated Monthly Cost</h3>
-        <div className="text-3xl font-bold text-elastic-blue mb-1">
+        <div className="text-3xl font-bold text-elastic-blue mb-3">
           ${metrics.costEstimate.toLocaleString()}
         </div>
-        <p className="text-xs text-elastic-gray-500">
-          Based on node count and hardware configuration
+        {(metrics.computeCost !== undefined || metrics.storageCost !== undefined) && (
+          <div className="space-y-2 pt-3 border-t border-elastic-gray-200">
+            {metrics.computeCost !== undefined && (
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-elastic-gray-600">Compute:</span>
+                <span className="font-medium text-elastic-dark">${metrics.computeCost.toLocaleString()}</span>
+              </div>
+            )}
+            {metrics.storageCost !== undefined && (
+              <div className="space-y-1">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-elastic-gray-600">Storage:</span>
+                  <span className="font-medium text-elastic-dark">${metrics.storageCost.toLocaleString()}</span>
+                </div>
+                {metrics.storageCost > 200000 && (
+                  <div className="text-xs text-elastic-gray-500 pl-2">
+                    Includes blob storage for frozen tier
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-elastic-gray-500 mt-3">
+          Based on compute and storage pricing
+        </p>
+        <p className="text-xs text-elastic-gray-400 mt-1">
+          Annual: ${(metrics.costEstimate * 12).toLocaleString()}
         </p>
       </div>
 
